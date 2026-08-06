@@ -412,10 +412,13 @@ class _EditorScreenState extends State<EditorScreen> {
                               
                               final scaledFrameW = bounds['frame_w'] * frameScale;
                               final scaledFrameH = bounds['frame_h'] * frameScale;
-                              final scaledHoleX = bounds['x'] * frameScale;
-                              final scaledHoleY = bounds['y'] * frameScale;
-                              final scaledHoleW = bounds['w'] * frameScale;
-                              final scaledHoleH = bounds['h'] * frameScale;
+                              
+                              // Add a small inset to hide the video deeply behind the bezel
+                              final inset = 0.0; 
+                              final scaledHoleX = (bounds['x'] * frameScale) + inset;
+                              final scaledHoleY = (bounds['y'] * frameScale) + inset;
+                              final scaledHoleW = (bounds['w'] * frameScale) - (inset * 2);
+                              final scaledHoleH = (bounds['h'] * frameScale) - (inset * 2);
                               
                               final globalFrameX = (canvasW - scaledFrameW) / 2;
                               final globalFrameY = (canvasH - scaledFrameH) / 2;
@@ -692,10 +695,12 @@ class _EditorScreenState extends State<EditorScreen> {
       final scaledFrameW = (bounds['frame_w'] * frameScale).toInt();
       final scaledFrameH = (bounds['frame_h'] * frameScale).toInt();
       
-      final scaledHoleX = (bounds['x'] * frameScale).toInt();
-      final scaledHoleY = (bounds['y'] * frameScale).toInt();
-      final scaledHoleW = (bounds['w'] * frameScale).toInt();
-      final scaledHoleH = (bounds['h'] * frameScale).toInt();
+      // Add a small inset to perfectly hide the video edges behind the device bezel
+      final inset = 0;
+      final scaledHoleX = (bounds['x'] * frameScale).toInt() + inset;
+      final scaledHoleY = (bounds['y'] * frameScale).toInt() + inset;
+      final scaledHoleW = (bounds['w'] * frameScale).toInt() - (inset * 2);
+      final scaledHoleH = (bounds['h'] * frameScale).toInt() - (inset * 2);
       
       // Calculate the global offsets on the canvas for the frame
       final globalFrameX = (canvasW - scaledFrameW) / 2;
