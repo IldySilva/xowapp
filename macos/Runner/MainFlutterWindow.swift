@@ -46,10 +46,17 @@ class CaptureApiImpl: NSObject, CaptureApi {
         task.environment = getTaskEnvironment()
         let pipe = Pipe()
         task.standardOutput = pipe
+        
+        let errPipe = Pipe()
+        task.standardError = errPipe
+        
         do {
             if #available(macOS 10.13, *) { try task.run() } else { task.launch() }
             task.waitUntilExit()
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+            let errString = String(data: errData, encoding: .utf8) ?? ""
+            
             if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let devices = json["devices"] as? [String: [[String: Any]]] {
                 var sources: [CaptureSource] = []
@@ -62,10 +69,17 @@ class CaptureApiImpl: NSObject, CaptureApi {
                         }
                     }
                 }
+                
+                if sources.isEmpty && !errString.isEmpty {
+                   sources.append(CaptureSource(id: "error", name: "Err: \(errString.prefix(40))", type: 2))
+                }
                 return sources
+            } else {
+               return [CaptureSource(id: "error", name: "ParseErr: \(errString.prefix(40))", type: 2)]
             }
-        } catch {}
-        return []
+        } catch {
+            return [CaptureSource(id: "error", name: "Catch: \(error.localizedDescription)", type: 2)]
+        }
     }
     
     func getAvailableSources(completion: @escaping (Result<[CaptureSource], Error>) -> Void) {

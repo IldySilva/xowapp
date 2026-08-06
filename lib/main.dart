@@ -2,10 +2,25 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'dart:convert';
+import 'package:toastification/toastification.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'src/messages.g.dart';
+
+void showToast(BuildContext context, String message, {bool isError = false}) {
+  toastification.show(
+    context: context,
+    type: isError ? ToastificationType.error : ToastificationType.success,
+    style: ToastificationStyle.flatColored,
+    title: Text(isError ? 'Oops!' : 'Success'),
+    description: Text(message),
+    alignment: Alignment.topRight,
+    autoCloseDuration: const Duration(seconds: 4),
+    boxShadow: lowModeShadow,
+    showProgressBar: true,
+  );
+}
 
 void main() {
   runApp(const ReelBrickApp());
@@ -95,11 +110,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
     final simulators = _sources.where((s) => s.type == 2).toList();
     if (simulators.isEmpty && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No booted simulators found. Please launch one.'),
-        ),
-      );
+      showToast(context, 'No booted simulators found. Please launch one.', isError: true);
       return;
     }
 
@@ -434,9 +445,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
   Future<void> _handleStartRecording(CaptureSource source) async {
     if (source.type != 2) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Use a Simulator!')));
+      showToast(context, 'Use a Simulator!', isError: true);
       return;
     }
     try {
@@ -454,10 +463,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
         });
       });
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        showToast(context, 'Error: $e', isError: true);
+      }
     }
   }
 
@@ -471,10 +479,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
         _openEditor(sourceId);
       }
     } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        showToast(context, 'Error: $e', isError: true);
+      }
     }
   }
 
@@ -1291,9 +1298,15 @@ class _EditorScreenState extends State<EditorScreen> {
     try {
       final home = Platform.environment['HOME'] ?? '';
       final outputPath =
-          '$home/Downloads/ReelBrick_Export_${DateTime.now().millisecondsSinceEpoch}.mp4';
-      final framePath = _selectedFramePath!;
-      final bounds = _framesData[framePath];
+          '$home/Downloads/Xowcase_Export_${DateTime.now().millisecondsSinceEpoch}.mp4';
+          
+      // Copy asset frame to an absolute temporary path so ffmpeg can read it in Release mode
+      final frameAssetPath = _selectedFramePath!;
+      final frameAssetData = await rootBundle.load(frameAssetPath);
+      final tempFramePath = '$home/Downloads/xowcase_temp_frame.png';
+      await File(tempFramePath).writeAsBytes(frameAssetData.buffer.asUint8List());
+      
+      final bounds = _framesData[frameAssetPath];
 
       int canvasW = 1080;
       int canvasH = 1920;
@@ -1366,7 +1379,7 @@ class _EditorScreenState extends State<EditorScreen> {
         '-i',
         widget.videoPath,
         '-i',
-        framePath,
+        tempFramePath,
         '-i',
         maskPath,
         '-f',
@@ -1398,28 +1411,17 @@ class _EditorScreenState extends State<EditorScreen> {
 
       if (result.exitCode == 0) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Exportado com sucesso para: $outputPath'),
-              duration: const Duration(seconds: 5),
-            ),
-          );
+          showToast(context, 'Exportado com sucesso para: $outputPath');
         }
       } else {
         print("FFMPEG ERROR: ${result.stderr}");
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Erro ao exportar! Veja os logs do terminal.'),
-            ),
-          );
+          showToast(context, 'Erro ao exportar! Veja os logs do terminal.', isError: true);
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Erro: $e')));
+        showToast(context, 'Erro: $e', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isExporting = false);
