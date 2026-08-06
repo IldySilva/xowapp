@@ -275,7 +275,7 @@ class EditorScreen extends StatefulWidget {
 
 class _EditorScreenState extends State<EditorScreen> {
   late VideoPlayerController _controller;
-  Color _backgroundColor = const Color(0xFF1C1C1E);
+  Color _backgroundColor = Colors.white;
   String _resolution = '9:16 (Story/Reels)';
   bool _isExporting = false;
   
@@ -344,8 +344,8 @@ class _EditorScreenState extends State<EditorScreen> {
     return Container(
       height: 56,
       decoration: const BoxDecoration(
-        color: Color(0xFF1C1C1E),
-        border: Border(bottom: BorderSide(color: Color(0xFF2C2C2E), width: 1)),
+        color: Color(0xFFF5F5F7),
+        border: Border(bottom: BorderSide(color: Color(0xFFE5E5EA), width: 1)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -354,11 +354,11 @@ class _EditorScreenState extends State<EditorScreen> {
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back_ios, size: 18, color: Colors.white70),
+                icon: const Icon(Icons.arrow_back_ios, size: 18, color: Colors.black87),
                 onPressed: () => Navigator.pop(context),
               ),
               const SizedBox(width: 8),
-              const Text('Project: Untitled Demo', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              const Text('Project: Untitled Demo', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
             ],
           ),
           ElevatedButton.icon(
@@ -381,7 +381,7 @@ class _EditorScreenState extends State<EditorScreen> {
   Widget _buildCanvas() {
     return Expanded(
       child: Container(
-        color: const Color(0xFF121212),
+        color: const Color(0xFFE5E5EA),
         child: Center(
           child: AspectRatio(
             aspectRatio: _resolution == '9:16 (Story/Reels)' ? 9 / 16 : 16 / 9,
@@ -434,7 +434,7 @@ class _EditorScreenState extends State<EditorScreen> {
                                     width: scaledHoleW,
                                     height: scaledHoleH,
                                     child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(44 * frameScale),
+                                      borderRadius: BorderRadius.circular(120 * frameScale),
                                       child: FittedBox(
                                         fit: BoxFit.cover,
                                         child: SizedBox(
@@ -458,8 +458,8 @@ class _EditorScreenState extends State<EditorScreen> {
                               );
                             },
                           )
-                        : const CircularProgressIndicator(color: Colors.white)
-                    : const CircularProgressIndicator(color: Colors.white),
+                        : const CircularProgressIndicator(color: Colors.black)
+                    : const CircularProgressIndicator(color: Colors.black),
               ),
             ),
           ),
@@ -472,26 +472,27 @@ class _EditorScreenState extends State<EditorScreen> {
     return Container(
       width: 320,
       decoration: const BoxDecoration(
-        color: Color(0xFF1C1C1E),
-        border: Border(left: BorderSide(color: Color(0xFF2C2C2E), width: 1)),
+        color: Color(0xFFF5F5F7),
+        border: Border(left: BorderSide(color: Color(0xFFE5E5EA), width: 1)),
       ),
       child: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          const Text('Canvas Settings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+          const Text('Canvas Settings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(height: 24),
           
           _buildSidebarSection(
             'Resolution',
             DropdownButtonFormField<String>(
               value: _resolution,
-              dropdownColor: const Color(0xFF2C2C2E),
-              style: const TextStyle(color: Colors.white, fontSize: 13),
+              dropdownColor: Colors.white,
+              style: const TextStyle(color: Colors.black87, fontSize: 13),
               decoration: InputDecoration(
                 filled: true,
-                fillColor: const Color(0xFF2C2C2E),
+                fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5E5EA))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5E5EA))),
               ),
               items: ['9:16 (Story/Reels)', '16:9 (YouTube)', '1:1 (Square)'].map((String val) {
                 return DropdownMenuItem(value: val, child: Text(val));
@@ -509,7 +510,7 @@ class _EditorScreenState extends State<EditorScreen> {
               spacing: 12,
               runSpacing: 12,
               children: [
-                _colorButton(const Color(0xFF1C1C1E)),
+                _colorButton(Colors.white),
                 _colorButton(const Color(0xFF5E5CE6)),
                 _colorButton(const Color(0xFFFF9F0A)),
                 _colorButton(const Color(0xFFFF375F)),
@@ -526,13 +527,14 @@ class _EditorScreenState extends State<EditorScreen> {
               : DropdownButtonFormField<String>(
                   value: _selectedFramePath,
                   isExpanded: true,
-                  dropdownColor: const Color(0xFF2C2C2E),
-                  style: const TextStyle(color: Colors.white, fontSize: 11),
+                  dropdownColor: Colors.white,
+                  style: const TextStyle(color: Colors.black87, fontSize: 11),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFF2C2C2E),
+                    fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5E5EA))),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE5E5EA))),
                   ),
                   items: _framesData.keys.map((String path) {
                     final name = path.split('/').last.replaceAll('.png', '');
@@ -552,7 +554,7 @@ class _EditorScreenState extends State<EditorScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w600)),
+        Text(title, style: const TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         child,
       ],
@@ -568,7 +570,7 @@ class _EditorScreenState extends State<EditorScreen> {
         decoration: BoxDecoration(
           color: c,
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: _backgroundColor == c ? 2 : 0),
+          border: Border.all(color: Colors.black26, width: _backgroundColor == c ? 2 : 1),
         ),
       ),
     );
@@ -578,8 +580,8 @@ class _EditorScreenState extends State<EditorScreen> {
     return Container(
       height: 140,
       decoration: const BoxDecoration(
-        color: Color(0xFF1C1C1E),
-        border: Border(top: BorderSide(color: Color(0xFF2C2C2E), width: 1)),
+        color: Color(0xFFF5F5F7),
+        border: Border(top: BorderSide(color: Color(0xFFE5E5EA), width: 1)),
       ),
       child: Column(
         children: [
@@ -589,7 +591,7 @@ class _EditorScreenState extends State<EditorScreen> {
             child: Row(
               children: [
                 IconButton(
-                  icon: Icon(_controller.value.isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white),
+                  icon: Icon(_controller.value.isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.black87),
                   onPressed: () {
                     setState(() {
                       _controller.value.isPlaying ? _controller.pause() : _controller.play();
@@ -602,11 +604,11 @@ class _EditorScreenState extends State<EditorScreen> {
                   builder: (context, VideoPlayerValue value, child) {
                     final position = value.position.toString().split('.').first;
                     final duration = value.duration.toString().split('.').first;
-                    return Text('$position / $duration', style: const TextStyle(color: Colors.white70, fontFamily: 'Monospace', fontSize: 12));
+                    return Text('$position / $duration', style: const TextStyle(color: Colors.black87, fontFamily: 'Monospace', fontSize: 12));
                   },
                 ),
                 const Spacer(),
-                const Text('Trim/Cut (Em Breve)', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                const Text('Trim/Cut (Em Breve)', style: TextStyle(color: Colors.black38, fontSize: 12)),
               ],
             ),
           ),
@@ -616,7 +618,7 @@ class _EditorScreenState extends State<EditorScreen> {
             child: Container(
               margin: const EdgeInsets.fromLTRB(24, 0, 24, 16),
               decoration: BoxDecoration(
-                color: const Color(0xFF2C2C2E),
+                color: const Color(0xFFE5E5EA),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Stack(
@@ -719,7 +721,7 @@ class _EditorScreenState extends State<EditorScreen> {
       maskCanvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(0, 0, scaledHoleW.toDouble(), scaledHoleH.toDouble()),
-          Radius.circular(44 * frameScale),
+          Radius.circular(120 * frameScale),
         ),
         maskPaint,
       );
