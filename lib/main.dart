@@ -537,6 +537,7 @@ class _EditorScreenState extends State<EditorScreen> {
 
   Map<String, dynamic> _framesData = {};
   String? _selectedFramePath;
+  String? _videoError;
 
   @override
   void initState() {
@@ -547,6 +548,10 @@ class _EditorScreenState extends State<EditorScreen> {
         setState(() {});
         _controller.setLooping(true);
         _controller.play();
+      }).catchError((e) {
+        setState(() {
+          _videoError = e.toString();
+        });
       });
   }
 
@@ -642,41 +647,46 @@ class _EditorScreenState extends State<EditorScreen> {
               ),
             ],
           ),
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.near_me_outlined,
-                  size: 20,
-                  color: Colors.black87,
-                ),
-                onPressed: () {},
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.near_me_outlined,
+                      size: 20,
+                      color: Colors.black87,
+                    ),
+                    onPressed: () {},
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.text_fields,
+                      size: 20,
+                      color: Colors.black54,
+                    ),
+                    onPressed: () {},
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.devices,
+                      size: 20,
+                      color: Colors.black54,
+                    ),
+                    onPressed: () {},
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.bookmark_border,
+                      size: 20,
+                      color: Colors.black54,
+                    ),
+                    onPressed: () {},
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(
-                  Icons.text_fields,
-                  size: 20,
-                  color: Colors.black54,
-                ),
-                onPressed: () {},
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.devices,
-                  size: 20,
-                  color: Colors.black54,
-                ),
-                onPressed: () {},
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.bookmark_border,
-                  size: 20,
-                  color: Colors.black54,
-                ),
-                onPressed: () {},
-              ),
-            ],
+            ),
           ),
           Row(
             children: [
@@ -838,7 +848,16 @@ class _EditorScreenState extends State<EditorScreen> {
                               },
                             )
                           : const CircularProgressIndicator(color: Colors.black)
-                    : const CircularProgressIndicator(color: Colors.black),
+                    : _videoError != null
+                        ? Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              'Video Error: $_videoError',
+                              style: const TextStyle(color: Colors.red),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        : const CircularProgressIndicator(color: Colors.black),
               ),
             ),
           ),

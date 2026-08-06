@@ -94,7 +94,7 @@ class CaptureApiImpl: NSObject, CaptureApi {
         if sourceType == 2 {
             let task = Process()
             task.launchPath = "/usr/bin/xcrun"
-            task.arguments = ["simctl", "io", sourceId, "recordVideo", "--force", outputPath]
+            task.arguments = ["simctl", "io", sourceId, "recordVideo", "--codec", "h264", "--force", outputPath]
             task.environment = getTaskEnvironment()
             self.currentProcess = task
             do {
