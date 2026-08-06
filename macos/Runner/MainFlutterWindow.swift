@@ -32,10 +32,18 @@ class CaptureApiImpl: NSObject, CaptureApi {
     
     var activeTextures: [Int64: Any] = [:]
     
+    private func getTaskEnvironment() -> [String: String] {
+        var env = ProcessInfo.processInfo.environment
+        let existingPath = env["PATH"] ?? ""
+        env["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin:\(existingPath)"
+        return env
+    }
+    
     func getSimulators() -> [CaptureSource] {
         let task = Process()
         task.launchPath = "/usr/bin/xcrun"
         task.arguments = ["simctl", "list", "devices", "-j"]
+        task.environment = getTaskEnvironment()
         let pipe = Pipe()
         task.standardOutput = pipe
         do {
@@ -91,6 +99,7 @@ class CaptureApiImpl: NSObject, CaptureApi {
             let task = Process()
             task.launchPath = "/usr/bin/xcrun"
             task.arguments = ["simctl", "io", sourceId, "recordVideo", "--force", outputPath]
+            task.environment = getTaskEnvironment()
             self.currentProcess = task
             do {
                 if #available(macOS 10.13, *) { try task.run() } else { task.launch() }
