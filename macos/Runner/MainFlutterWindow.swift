@@ -83,29 +83,11 @@ class CaptureApiImpl: NSObject, CaptureApi {
     }
     
     func getAvailableSources(completion: @escaping (Result<[CaptureSource], Error>) -> Void) {
-        if #available(macOS 12.3, *) {
-            SCShareableContent.getExcludingDesktopWindows(true, onScreenWindowsOnly: true) { content, error in
-                if let error = error {
-                    completion(.failure(error))
-                    return
-                }
-                var sources: [CaptureSource] = []
-                if let content = content {
-                    for display in content.displays {
-                        sources.append(CaptureSource(id: "\(display.displayID)", name: "Display \(display.displayID)", type: 0))
-                    }
-                    for window in content.windows {
-                        if let appName = window.owningApplication?.applicationName {
-                            sources.append(CaptureSource(id: "\(window.windowID)", name: "\(appName) - \(window.title ?? "Window")", type: 1))
-                        }
-                    }
-                }
-                sources.append(contentsOf: self.getSimulators())
-                completion(.success(sources))
-            }
-        } else {
-            completion(.failure(NSError(domain: "CaptureApi", code: -1, userInfo: [NSLocalizedDescriptionKey: "macOS 12.3+ required"])))
-        }
+        // Only return simulators. We do not use ScreenCaptureKit for simulators,
+        // so we can bypass SCShareableContent entirely to avoid triggering
+        // the macOS "Screen Recording" permission prompt.
+        let sources = self.getSimulators()
+        completion(.success(sources))
     }
     
     func startCapture(sourceId: String, sourceType: Int64, outputPath: String, completion: @escaping (Result<Void, Error>) -> Void) {
