@@ -194,6 +194,19 @@ class MainFlutterWindow: NSWindow {
     let windowFrame = self.frame
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
+    
+    // Frameless native look with transparent background for tiny toolbars
+    self.styleMask.remove(.titled) // Removes traffic lights completely!
+    self.styleMask.insert(.fullSizeContentView)
+    self.isMovableByWindowBackground = true
+    self.isOpaque = false
+    self.backgroundColor = .clear
+    self.hasShadow = false // Fixes the black square background!
+    
+    // Force Flutter view itself to be transparent
+    flutterViewController.backgroundColor = .clear
+    flutterViewController.view.layer?.isOpaque = false
+    flutterViewController.view.layer?.backgroundColor = CGColor.clear
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     
@@ -201,6 +214,50 @@ class MainFlutterWindow: NSWindow {
     let registrar = flutterViewController.registrar(forPlugin: "CaptureApi")
     captureApi.registry = registrar.textures
     CaptureApiSetup.setUp(binaryMessenger: registrar.messenger, api: captureApi)
+
+    let channel = FlutterMethodChannel(name: "app.xowcase/window", binaryMessenger: registrar.messenger)
+    channel.setMethodCallHandler { [weak self] (call, result) in
+      guard let self = self else { return }
+      if call.method == "setSize" {
+         if let args = call.arguments as? [String: Double],
+            let w = args["width"], let h = args["height"] {
+            var frame = self.frame
+            let oldW = frame.size.width
+            let oldH = frame.size.height
+            frame.size = NSSize(width: w, height: h)
+            frame.origin.x += (oldW - CGFloat(w)) / 2
+            frame.origin.y += (oldH - CGFloat(h)) / 2
+            self.setFrame(frame, display: true, animate: true)
+            
+            if w <= 500 {
+                self.level = .floating
+                self.styleMask.remove(.resizable)
+                self.styleMask.remove(.titled) // Remove traffic lights for pill
+                self.isOpaque = false
+                self.backgroundColor = .clear
+                self.hasShadow = false
+            } else {
+                self.level = .normal
+                self.styleMask.insert(.resizable)
+                self.styleMask.insert(.titled) // Restore traffic lights for Editor
+                self.titleVisibility = .hidden
+                self.titlebarAppearsTransparent = true
+                self.isOpaque = true
+                self.backgroundColor = .windowBackgroundColor
+                self.hasShadow = true
+            }
+            
+            result(nil)
+         }
+      } else if call.method == "startDragging" {
+         if let event = NSApp.currentEvent {
+            self.performDrag(with: event)
+         }
+         result(nil)
+      } else {
+         result(FlutterMethodNotImplemented)
+      }
+    }
 
     super.awakeFromNib()
   }
