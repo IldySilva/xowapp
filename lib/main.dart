@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'dart:convert';
+import 'clipper.dart';
 import 'package:toastification/toastification.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -539,6 +540,11 @@ class _EditorScreenState extends State<EditorScreen> {
   String? _selectedFramePath;
   String? _videoError;
 
+  double _cropTop = 0.0;
+  double _cropBottom = 0.0;
+  double _cropLeft = 0.0;
+  double _cropRight = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -799,52 +805,71 @@ class _EditorScreenState extends State<EditorScreen> {
                                 final scaledHoleH =
                                     (bounds['h'] * frameScale) - (inset * 2);
 
-                                final globalFrameX =
-                                    (canvasW - scaledFrameW) / 2;
-                                final globalFrameY =
-                                    (canvasH - scaledFrameH) / 2;
+                                final visibleW = scaledFrameW * (1 - _cropLeft - _cropRight);
+                                final visibleH = scaledFrameH * (1 - _cropTop - _cropBottom);
 
-                                final absVidX = globalFrameX + scaledHoleX;
-                                final absVidY = globalFrameY + scaledHoleY;
+                                final visibleStartX = (canvasW - visibleW) / 2;
+                                final visibleStartY = (canvasH - visibleH) / 2;
+
+                                final globalFrameX = visibleStartX - (scaledFrameW * _cropLeft);
+                                final globalFrameY = visibleStartY - (scaledFrameH * _cropTop);
 
                                 return Stack(
                                   children: [
-                                    Positioned(
-                                      left: absVidX,
-                                      top: absVidY,
-                                      width: scaledHoleW,
-                                      height: scaledHoleH,
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(
-                                          120 * frameScale,
-                                        ),
-                                        child: FittedBox(
-                                          fit: BoxFit.cover,
-                                          child: SizedBox(
-                                            width:
-                                                _controller.value.size.width ==
-                                                    0
-                                                ? 100
-                                                : _controller.value.size.width,
-                                            height:
-                                                _controller.value.size.height ==
-                                                    0
-                                                ? 100
-                                                : _controller.value.size.height,
-                                            child: VideoPlayer(_controller),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
                                     Positioned(
                                       left: globalFrameX,
                                       top: globalFrameY,
                                       width: scaledFrameW,
                                       height: scaledFrameH,
-                                      child: IgnorePointer(
-                                        child: Image.asset(
-                                          _selectedFramePath!,
-                                          fit: BoxFit.fill,
+                                      child: ClipRect(
+                                        clipper: DeviceClipper(
+                                          top: _cropTop,
+                                          bottom: _cropBottom,
+                                          left: _cropLeft,
+                                          right: _cropRight,
+                                        ),
+                                        child: Stack(
+                                          children: [
+                                            Positioned(
+                                              left: scaledHoleX,
+                                              top: scaledHoleY,
+                                              width: scaledHoleW,
+                                              height: scaledHoleH,
+                                              child: ClipRRect(
+                                                borderRadius: BorderRadius.circular(
+                                                  120 * frameScale,
+                                                ),
+                                                child: FittedBox(
+                                                  fit: BoxFit.cover,
+                                                  child: SizedBox(
+                                                    width:
+                                                        _controller.value.size.width ==
+                                                            0
+                                                        ? 100
+                                                        : _controller.value.size.width,
+                                                    height:
+                                                        _controller.value.size.height ==
+                                                            0
+                                                        ? 100
+                                                        : _controller.value.size.height,
+                                                    child: VideoPlayer(_controller),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            Positioned(
+                                              left: 0,
+                                              top: 0,
+                                              width: scaledFrameW,
+                                              height: scaledFrameH,
+                                              child: IgnorePointer(
+                                                child: Image.asset(
+                                                  _selectedFramePath!,
+                                                  fit: BoxFit.fill,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
@@ -992,6 +1017,10 @@ class _EditorScreenState extends State<EditorScreen> {
 
           _buildSidebarSection('Resolution', _buildResolutionGrid()),
           const SizedBox(height: 24),
+          _buildSidebarSection('Device Crop', _buildCropGrid()),
+          const SizedBox(height: 12),
+          _buildSidebarSection('Custom Crop', _buildCropSliders()),
+          const SizedBox(height: 24),
           _buildSidebarSection('Quality', _buildQualityPills()),
           const SizedBox(height: 24),
           _buildSidebarSection(
@@ -1050,6 +1079,85 @@ class _EditorScreenState extends State<EditorScreen> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildCropGrid() {
+    final opts = [
+      'Full Device',
+      'Top Half',
+      'Bottom Half',
+      'Middle',
+    ];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: opts.map((opt) {
+        bool isActive = false;
+        if (opt == 'Full Device') isActive = _cropTop == 0 && _cropBottom == 0 && _cropLeft == 0 && _cropRight == 0;
+        else if (opt == 'Top Half') isActive = _cropTop == 0 && _cropBottom == 0.5 && _cropLeft == 0 && _cropRight == 0;
+        else if (opt == 'Bottom Half') isActive = _cropTop == 0.5 && _cropBottom == 0 && _cropLeft == 0 && _cropRight == 0;
+        else if (opt == 'Middle') isActive = _cropTop == 0.25 && _cropBottom == 0.25 && _cropLeft == 0 && _cropRight == 0;
+
+        return InkWell(
+          onTap: () {
+            setState(() {
+              if (opt == 'Full Device') { _cropTop = 0; _cropBottom = 0; _cropLeft = 0; _cropRight = 0; }
+              else if (opt == 'Top Half') { _cropTop = 0; _cropBottom = 0.5; _cropLeft = 0; _cropRight = 0; }
+              else if (opt == 'Bottom Half') { _cropTop = 0.5; _cropBottom = 0; _cropLeft = 0; _cropRight = 0; }
+              else if (opt == 'Middle') { _cropTop = 0.25; _cropBottom = 0.25; _cropLeft = 0; _cropRight = 0; }
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? const Color(0xFF0A84FF).withOpacity(0.1)
+                  : const Color(0xFFF5F5F7),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isActive ? const Color(0xFF0A84FF) : Colors.transparent,
+              ),
+            ),
+            child: Text(
+              opt,
+              style: TextStyle(
+                fontSize: 12,
+                color: isActive ? const Color(0xFF0A84FF) : Colors.black87,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildCropSliders() {
+    return Column(
+      children: [
+        _buildCropSlider('Top', _cropTop, (v) => setState(() => _cropTop = v), 1.0 - _cropBottom - 0.05),
+        _buildCropSlider('Bottom', _cropBottom, (v) => setState(() => _cropBottom = v), 1.0 - _cropTop - 0.05),
+        _buildCropSlider('Left', _cropLeft, (v) => setState(() => _cropLeft = v), 1.0 - _cropRight - 0.05),
+        _buildCropSlider('Right', _cropRight, (v) => setState(() => _cropRight = v), 1.0 - _cropLeft - 0.05),
+      ],
+    );
+  }
+
+  Widget _buildCropSlider(String label, double val, Function(double) onChanged, double maxVal) {
+    return Row(
+      children: [
+        SizedBox(width: 50, child: Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54))),
+        Expanded(
+          child: Slider(
+            value: val > maxVal ? maxVal : val,
+            min: 0.0,
+            max: maxVal < 0.1 ? 0.1 : maxVal,
+            onChanged: onChanged,
+            activeColor: const Color(0xFF0A84FF),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1371,13 +1479,11 @@ class _EditorScreenState extends State<EditorScreen> {
       final scaledHoleW = (bounds['w'] * frameScale).toInt() - (inset * 2);
       final scaledHoleH = (bounds['h'] * frameScale).toInt() - (inset * 2);
 
-      // Calculate the global offsets on the canvas for the frame
-      final globalFrameX = (canvasW - scaledFrameW) / 2;
-      final globalFrameY = (canvasH - scaledFrameH) / 2;
-
-      // The absolute position of the video on the canvas is the frame's global position + hole offset
-      final absVidX = (globalFrameX + scaledHoleX).toInt();
-      final absVidY = (globalFrameY + scaledHoleY).toInt();
+      // The crop values
+      final visibleW = (scaledFrameW * (1 - _cropLeft - _cropRight)).toInt();
+      final visibleH = (scaledFrameH * (1 - _cropTop - _cropBottom)).toInt();
+      final cropOffsetX = (scaledFrameW * _cropLeft).toInt();
+      final cropOffsetY = (scaledFrameH * _cropTop).toInt();
 
       // Generate a mask for the video to give it perfectly rounded corners in FFmpeg
       final maskPath = '$home/Downloads/reelbrick_temp_mask.png';
@@ -1418,8 +1524,11 @@ class _EditorScreenState extends State<EditorScreen> {
             '[2:v]format=rgba[mask];'
             '[vid_scaled][mask]alphamerge[vid_rounded];'
             '[1:v]scale=$scaledFrameW:$scaledFrameH[frame];'
-            '[3:v][vid_rounded]overlay=$absVidX:$absVidY:shortest=1[bgAndVid];'
-            '[bgAndVid][frame]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2[out]',
+            'color=c=black@0:s=${scaledFrameW}x${scaledFrameH}:r=60,format=rgba[transparent_bg];'
+            '[transparent_bg][vid_rounded]overlay=$scaledHoleX:$scaledHoleY:shortest=1[device_with_vid];'
+            '[device_with_vid][frame]overlay=0:0[full_device];'
+            '[full_device]crop=$visibleW:$visibleH:$cropOffsetX:$cropOffsetY[cropped_device];'
+            '[3:v][cropped_device]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2[out]',
         '-map',
         '[out]',
         '-map',
