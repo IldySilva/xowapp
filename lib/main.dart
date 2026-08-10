@@ -592,9 +592,13 @@ class _EditorScreenState extends State<EditorScreen> {
       backgroundColor: const Color(0xFFF5F5F7),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxHeight < 200 || constraints.maxWidth < 500) {
-            // Return an empty view while the window is animating its resize
-            return const SizedBox.shrink();
+          if (constraints.maxHeight < 500 || constraints.maxWidth < 800) {
+            return const Center(
+              child: Text(
+                'Please enlarge window to use Reckerly',
+                style: TextStyle(color: Colors.black54, fontSize: 16),
+              ),
+            );
           }
           return Row(
             children: [
