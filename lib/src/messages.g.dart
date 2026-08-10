@@ -193,7 +193,7 @@ class CaptureApi {
   final String pigeonVar_messageChannelSuffix;
 
   Future<List<CaptureSource>> getAvailableSources() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.reckerly.CaptureApi.getAvailableSources$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.xowcase.CaptureApi.getAvailableSources$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -212,7 +212,7 @@ class CaptureApi {
   }
 
   Future<void> startCapture(String sourceId, int sourceType, String outputPath) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.reckerly.CaptureApi.startCapture$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.xowcase.CaptureApi.startCapture$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -230,7 +230,7 @@ class CaptureApi {
   }
 
   Future<void> stopCapture() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.reckerly.CaptureApi.stopCapture$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.xowcase.CaptureApi.stopCapture$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -248,7 +248,7 @@ class CaptureApi {
   }
 
   Future<int> startPreview(String sourceId, int sourceType) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.reckerly.CaptureApi.startPreview$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.xowcase.CaptureApi.startPreview$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -267,7 +267,7 @@ class CaptureApi {
   }
 
   Future<void> stopPreview(int textureId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.reckerly.CaptureApi.stopPreview$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.xowcase.CaptureApi.stopPreview$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,

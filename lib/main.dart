@@ -24,17 +24,17 @@ void showToast(BuildContext context, String message, {bool isError = false}) {
 }
 
 void main() {
-  runApp(const ReelBrickApp());
+  runApp(const XowCaseApp());
 }
 
-class ReelBrickApp extends StatelessWidget {
-  const ReelBrickApp({super.key});
+class XowCaseApp extends StatelessWidget {
+  const XowCaseApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'ReelBrick',
+      title: 'XowCase',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.deepPurple,
@@ -452,7 +452,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
     try {
       final home = Platform.environment['HOME'] ?? '';
       final outputPath =
-          '$home/Downloads/reelbrick_${DateTime.now().millisecondsSinceEpoch}.mp4';
+          '$home/Downloads/xowcase_${DateTime.now().millisecondsSinceEpoch}.mp4';
       await _api.startCapture(source.id, source.type, outputPath);
       setState(() {
         _activeSource = source;
@@ -494,7 +494,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
     final files = dir
         .listSync()
         .whereType<File>()
-        .where((f) => f.path.contains('reelbrick_'))
+        .where((f) => f.path.contains('xowcase_'))
         .toList();
     if (files.isEmpty) return;
 
@@ -595,7 +595,7 @@ class _EditorScreenState extends State<EditorScreen> {
           if (constraints.maxHeight < 500 || constraints.maxWidth < 800) {
             return const Center(
               child: Text(
-                'Please enlarge window to use Reckerly',
+                'Please enlarge window to use XowCase',
                 style: TextStyle(color: Colors.black54, fontSize: 16),
               ),
             );
@@ -1490,7 +1490,7 @@ class _EditorScreenState extends State<EditorScreen> {
       final cropOffsetY = (scaledFrameH * _cropTop).toInt();
 
       // Generate a mask for the video to give it perfectly rounded corners in FFmpeg
-      final maskPath = '$home/Downloads/reelbrick_temp_mask.png';
+      final maskPath = '$home/Downloads/xowcase_temp_mask.png';
       final maskRecorder = ui.PictureRecorder();
       final maskCanvas = Canvas(
         maskRecorder,

@@ -551,7 +551,7 @@ class CaptureApiSetup {
   /// Sets up an instance of `CaptureApi` to handle messages through the `binaryMessenger`.
   static func setUp(binaryMessenger: FlutterBinaryMessenger, api: CaptureApi?, messageChannelSuffix: String = "") {
     let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
-    let getAvailableSourcesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.reckerly.CaptureApi.getAvailableSources\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let getAvailableSourcesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.xowcase.CaptureApi.getAvailableSources\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       getAvailableSourcesChannel.setMessageHandler { _, reply in
         api.getAvailableSources { result in
@@ -566,7 +566,7 @@ class CaptureApiSetup {
     } else {
       getAvailableSourcesChannel.setMessageHandler(nil)
     }
-    let startCaptureChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.reckerly.CaptureApi.startCapture\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let startCaptureChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.xowcase.CaptureApi.startCapture\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       startCaptureChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -585,7 +585,7 @@ class CaptureApiSetup {
     } else {
       startCaptureChannel.setMessageHandler(nil)
     }
-    let stopCaptureChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.reckerly.CaptureApi.stopCapture\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let stopCaptureChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.xowcase.CaptureApi.stopCapture\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       stopCaptureChannel.setMessageHandler { _, reply in
         do {
@@ -598,7 +598,7 @@ class CaptureApiSetup {
     } else {
       stopCaptureChannel.setMessageHandler(nil)
     }
-    let startPreviewChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.reckerly.CaptureApi.startPreview\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let startPreviewChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.xowcase.CaptureApi.startPreview\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       startPreviewChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -616,7 +616,7 @@ class CaptureApiSetup {
     } else {
       startPreviewChannel.setMessageHandler(nil)
     }
-    let stopPreviewChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.reckerly.CaptureApi.stopPreview\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let stopPreviewChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.xowcase.CaptureApi.stopPreview\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       stopPreviewChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]

@@ -1,4 +1,4 @@
-# ReelBrick — Spec Técnica & Backlog
+# XowCase — Spec Técnica & Backlog
 *(nome provisório, segue o padrão Brick — troca fácil por outro)*
 
 App macOS para gravação de demos de apps (Simulator, device físico, tela) com molduras de device, cena 3D, edição e export. Arquitetura híbrida: Flutter (UI/orquestração) + Swift nativo (captura, render, export).
@@ -62,7 +62,7 @@ App macOS para gravação de demos de apps (Simulator, device físico, tela) com
 - RF23: Preset de resolução por destino (App Store, Instagram Reels, Twitter/X, etc.)
 
 ### RF — Projeto/Persistência
-- RF24: Salvar projeto (estado de timeline, clipes, configs) em formato próprio (`.reelbrick` ou JSON+assets)
+- RF24: Salvar projeto (estado de timeline, clipes, configs) em formato próprio (`.xowcase` ou JSON+assets)
 - RF25: Reabrir projeto e continuar edição
 
 ---
