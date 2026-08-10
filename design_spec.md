@@ -94,5 +94,5 @@ The timeline requires highly interactive, custom-painted Flutter widgets to hand
 ### **Flutter Implementation Directives**
 
 * **Window Management:** Use a package like `bitsdojo_window` or `window_manager` to strip the default macOS title bar and seamlessly integrate the red/yellow/green native window controls into your custom dark top bar.
-* **State Management:** Due to the complex interplay between the timeline, canvas, and inspector, utilize a robust state management solution (like Riverpod or Bloc) to ensure scrubbers and preview states remain perfectly synchronized without rebuilding the entire UI tree.
+* **State Management:** Due to the complex interplay between the timeline, canvas, and inspector, utilize a simple state manger (just native changenotifier,listenerbuilder and setstate) to ensure scrubbers and preview states remain perfectly synchronized without rebuilding the entire UI tree.
 * **Hover & Focus:** Since this is a desktop application, implement subtle `onHover` color transitions (lightening panel backgrounds by ~5%) on all clickable elements to reinforce a tactile, modern desktop feel.

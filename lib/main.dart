@@ -737,12 +737,17 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   Widget _buildCanvas() {
+    double ratio = 9 / 16;
+    if (_resolution == '16:9 (YouTube)') ratio = 16 / 9;
+    else if (_resolution == '1:1 (Square)') ratio = 1.0;
+    else if (_resolution == '3:4') ratio = 3 / 4;
+
     return Expanded(
       child: Container(
         color: const Color(0xFFE5E5EA),
         child: Center(
           child: AspectRatio(
-            aspectRatio: _resolution == '9:16 (Story/Reels)' ? 9 / 16 : 16 / 9,
+            aspectRatio: ratio,
             child: Container(
               margin: const EdgeInsets.all(40),
               decoration: BoxDecoration(
@@ -1335,6 +1340,9 @@ class _EditorScreenState extends State<EditorScreen> {
       } else if (_resolution == '1:1 (Square)') {
         canvasW = 1080;
         canvasH = 1080;
+      } else if (_resolution == '3:4') {
+        canvasW = 1080;
+        canvasH = 1440;
       }
 
       final colorHex = _backgroundColor.value
@@ -1404,14 +1412,16 @@ class _EditorScreenState extends State<EditorScreen> {
         '-f',
         'lavfi',
         '-i',
-        'color=c=#$colorHex:s=${canvasW}x${canvasH}',
+        'color=c=#$colorHex:s=${canvasW}x${canvasH}:r=60',
         '-filter_complex',
         '[0:v]scale=$scaledHoleW:$scaledHoleH:force_original_aspect_ratio=increase,crop=$scaledHoleW:$scaledHoleH,format=rgba[vid_scaled];'
             '[2:v]format=rgba[mask];'
             '[vid_scaled][mask]alphamerge[vid_rounded];'
             '[1:v]scale=$scaledFrameW:$scaledFrameH[frame];'
             '[3:v][vid_rounded]overlay=$absVidX:$absVidY:shortest=1[bgAndVid];'
-            '[bgAndVid][frame]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2',
+            '[bgAndVid][frame]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2[out]',
+        '-map',
+        '[out]',
         '-map',
         '0:a?',
         '-c:v',
