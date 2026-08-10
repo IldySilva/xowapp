@@ -1532,7 +1532,7 @@ class _EditorScreenState extends State<EditorScreen> {
             '[transparent_bg][vid_rounded]overlay=$scaledHoleX:$scaledHoleY:shortest=1[device_with_vid];'
             '[device_with_vid][frame]overlay=0:0[full_device];'
             '[full_device]crop=$visibleW:$visibleH:$cropOffsetX:$cropOffsetY[cropped_device];'
-            '[3:v][cropped_device]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2[out]',
+            '[3:v][cropped_device]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2:shortest=1[out]',
         '-map',
         '[out]',
         '-map',
@@ -1549,14 +1549,71 @@ class _EditorScreenState extends State<EditorScreen> {
         outputPath,
       ];
 
-      final result = await Process.run('/opt/homebrew/bin/ffmpeg', args);
+      ValueNotifier<double> progressNotifier = ValueNotifier(0.0);
 
-      if (result.exitCode == 0) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text(
+            "Exporting Video",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: ValueListenableBuilder<double>(
+            valueListenable: progressNotifier,
+            builder: (context, val, child) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LinearProgressIndicator(
+                    value: val > 0 ? val : null,
+                    backgroundColor: const Color(0xFFE5E5EA),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0A84FF)),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    val > 0 ? "${(val * 100).toStringAsFixed(1)}%" : "Starting...",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      );
+
+      final process = await Process.start('/opt/homebrew/bin/ffmpeg', args);
+      final durationMicros = _controller.value.duration.inMicroseconds.toDouble();
+      final timeRegex = RegExp(r'time=(\d+):(\d+):(\d+\.\d+)');
+
+      process.stderr.transform(utf8.decoder).listen((line) {
+        final match = timeRegex.firstMatch(line);
+        if (match != null) {
+          final hours = int.parse(match.group(1)!);
+          final minutes = int.parse(match.group(2)!);
+          final seconds = double.parse(match.group(3)!);
+          final currentMicros = (hours * 3600 + minutes * 60 + seconds) * 1000000;
+          
+          if (durationMicros > 0) {
+            double p = currentMicros / durationMicros;
+            if (p > 1.0) p = 1.0;
+            progressNotifier.value = p;
+          }
+        }
+      });
+
+      final exitCode = await process.exitCode;
+      
+      // Close the dialog
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      if (exitCode == 0) {
         if (mounted) {
           showToast(context, 'Exportado com sucesso para: $outputPath');
         }
       } else {
-        print("FFMPEG ERROR: ${result.stderr}");
         if (mounted) {
           showToast(context, 'Erro ao exportar! Veja os logs do terminal.', isError: true);
         }
