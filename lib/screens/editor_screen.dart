@@ -24,6 +24,8 @@ class _EditorScreenState extends State<EditorScreen> {
   Map<String, dynamic> _framesData = {};
   String? _selectedFramePath;
   String? _videoError;
+  String _searchQuery = '';
+  String _selectedCategory = 'All';
 
   double _cropTop = 0.0;
   double _cropBottom = 0.0;
@@ -410,6 +412,7 @@ class _EditorScreenState extends State<EditorScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: TextField(
               style: const TextStyle(fontSize: 13),
+              onChanged: (val) => setState(() => _searchQuery = val),
               decoration: InputDecoration(
                 hintText: 'Search frames...',
                 hintStyle: const TextStyle(color: Colors.black38),
@@ -429,55 +432,113 @@ class _EditorScreenState extends State<EditorScreen> {
               ),
             ),
           ),
+          if (_framesData.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    value: _selectedCategory,
+                    icon: const Icon(Icons.arrow_drop_down, color: Colors.black54),
+                    style: const TextStyle(fontSize: 13, color: Colors.black87),
+                    dropdownColor: Colors.white,
+                    items: () {
+                      final categories = {'All'};
+                      for (final path in _framesData.keys) {
+                        final parts = path.split('/');
+                        if (parts.length > 1) {
+                          categories.add(parts[1]);
+                        }
+                      }
+                      return categories.toList()..sort();
+                    }().map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedCategory = val);
+                    },
+                  ),
+                ),
+              ),
+            ),
           const SizedBox(height: 8),
           Expanded(
             child: _framesData.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    itemCount: _framesData.keys.length,
-                    itemBuilder: (context, index) {
-                      final path = _framesData.keys.elementAt(index);
-                      final name = path.split('/').last.replaceAll('.png', '');
-                      final isSelected = _selectedFramePath == path;
-                      return InkWell(
-                        onTap: () => setState(() => _selectedFramePath = path),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          color: isSelected
-                              ? const Color(0xFF0A84FF).withOpacity(0.1)
-                              : Colors.transparent,
-                          child: Row(
-                            children: [
-                              Icon(
-                                isSelected
-                                    ? Icons.check_circle
-                                    : Icons.circle_outlined,
-                                color: isSelected
-                                    ? const Color(0xFF0A84FF)
-                                    : Colors.black26,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  name,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: isSelected
-                                        ? Colors.black87
-                                        : Colors.black54,
+                : Builder(builder: (context) {
+                    final filteredFrames = _framesData.keys.where((path) {
+                      final name = path.split('/').last.replaceAll('.png', '').toLowerCase();
+                      final matchesSearch = _searchQuery.isEmpty || name.contains(_searchQuery.toLowerCase());
+                      
+                      final parts = path.split('/');
+                      final category = parts.length > 1 ? parts[1] : '';
+                      final matchesCat = _selectedCategory == 'All' || category == _selectedCategory;
+                      
+                      return matchesSearch && matchesCat;
+                    }).toList();
+                    
+                    if (filteredFrames.isEmpty) {
+                      return const Center(
+                        child: Text('No frames found', style: TextStyle(color: Colors.black38, fontSize: 13)),
+                      );
+                    }
+                    
+                    return ListView.builder(
+                      itemCount: filteredFrames.length,
+                      itemBuilder: (context, index) {
+                        final path = filteredFrames[index];
+                        final name = path.split('/').last.replaceAll('.png', '');
+                        final isSelected = _selectedFramePath == path;
+                        return InkWell(
+                          onTap: () => setState(() => _selectedFramePath = path),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            color: isSelected
+                                ? const Color(0xFF0A84FF).withOpacity(0.1)
+                                : Colors.transparent,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isSelected
+                                      ? Icons.check_circle
+                                      : Icons.circle_outlined,
+                                  color: isSelected
+                                      ? const Color(0xFF0A84FF)
+                                      : Colors.black26,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    name,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: isSelected
+                                          ? Colors.black87
+                                          : Colors.black54,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      },
+                    );
+                  }),
           ),
         ],
       ),

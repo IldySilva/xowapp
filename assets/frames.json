@@ -1,4 +1,140 @@
 {
+  "frames/ipad-A16/iPad (A16) - Yellow - Portrait.png": {
+    "x": 200,
+    "y": 200,
+    "w": 1639,
+    "h": 2360,
+    "frame_w": 2040,
+    "frame_h": 2760
+  },
+  "frames/ipad-A16/iPad (A16) - Silver - Portrait.png": {
+    "x": 200,
+    "y": 200,
+    "w": 1639,
+    "h": 2360,
+    "frame_w": 2040,
+    "frame_h": 2760
+  },
+  "frames/macbook-air-m5/MacBook Air M5 15-inch Midnight.png": {
+    "x": 329,
+    "y": 218,
+    "w": 2880,
+    "h": 1864,
+    "frame_w": 3540,
+    "frame_h": 2300
+  },
+  "frames/macbook-air-m5/MacBook Air M5 13-inch Midnight.png": {
+    "x": 420,
+    "y": 288,
+    "w": 2560,
+    "h": 1664,
+    "frame_w": 3400,
+    "frame_h": 2240
+  },
+  "frames/macbook-air-m5/MacBook Air M5 15-inch Sky Blue.png": {
+    "x": 329,
+    "y": 218,
+    "w": 2880,
+    "h": 1864,
+    "frame_w": 3540,
+    "frame_h": 2300
+  },
+  "frames/macbook-air-m5/MacBook Air M5 13-inch Starlight.png": {
+    "x": 420,
+    "y": 288,
+    "w": 2560,
+    "h": 1664,
+    "frame_w": 3400,
+    "frame_h": 2240
+  },
+  "frames/macbook-air-m5/MacBook Air M5 15-inch Silver.png": {
+    "x": 329,
+    "y": 218,
+    "w": 2880,
+    "h": 1864,
+    "frame_w": 3540,
+    "frame_h": 2300
+  },
+  "frames/macbook-air-m5/MacBook Air M5 13-inch Silver.png": {
+    "x": 420,
+    "y": 288,
+    "w": 2560,
+    "h": 1664,
+    "frame_w": 3400,
+    "frame_h": 2240
+  },
+  "frames/macbook-air-m5/MacBook Air M5 15-inch Starlight.png": {
+    "x": 329,
+    "y": 218,
+    "w": 2880,
+    "h": 1864,
+    "frame_w": 3540,
+    "frame_h": 2300
+  },
+  "frames/macbook-air-m5/MacBook Air M5 13-inch Sky Blue.png": {
+    "x": 420,
+    "y": 288,
+    "w": 2560,
+    "h": 1664,
+    "frame_w": 3400,
+    "frame_h": 2240
+  },
+  "frames/ipad-mini-a17-pro/iPad mini (A17 Pro) - Space Gray - Portrait.png": {
+    "x": 146,
+    "y": 142,
+    "w": 1488,
+    "h": 2266,
+    "frame_w": 1780,
+    "frame_h": 2550
+  },
+  "frames/ipad-mini-a17-pro/iPad mini (A17 Pro) - Starlight - Portrait.png": {
+    "x": 146,
+    "y": 142,
+    "w": 1488,
+    "h": 2266,
+    "frame_w": 1780,
+    "frame_h": 2550
+  },
+  "frames/apple-tv/Apple TV - 4K.png": {
+    "x": 103,
+    "y": 120,
+    "w": 3840,
+    "h": 2159,
+    "frame_w": 4300,
+    "frame_h": 2780
+  },
+  "frames/ipad-pro-m5/iPad Pro (M5) 11\" - Silver - Portrait.png": {
+    "x": 106,
+    "y": 110,
+    "w": 1668,
+    "h": 2420,
+    "frame_w": 1880,
+    "frame_h": 2640
+  },
+  "frames/ipad-pro-m5/iPad Pro (M5) 11\" - Space Black - Portrait.png": {
+    "x": 106,
+    "y": 110,
+    "w": 1668,
+    "h": 2420,
+    "frame_w": 1880,
+    "frame_h": 2640
+  },
+  "frames/ipad-pro-m5/iPad Pro (M5) 13\" - Silver - Portrait.png": {
+    "x": 118,
+    "y": 124,
+    "w": 2064,
+    "h": 2752,
+    "frame_w": 2300,
+    "frame_h": 3000
+  },
+  "frames/ipad-pro-m5/iPad Pro (M5) 13\" - Space Black - Portrait.png": {
+    "x": 118,
+    "y": 124,
+    "w": 2064,
+    "h": 2752,
+    "frame_w": 2300,
+    "frame_h": 3000
+  },
   "frames/iphone-17/iPhone 17 Pro Max/iPhone 17 Pro Max - Cosmic Orange - Portrait.png": {
     "x": 75,
     "y": 66,

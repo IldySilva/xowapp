@@ -65,6 +65,11 @@ flutter:
     - assets/logo.png
     - assets/frames.json
     - frames/
+    - "frames/apple-tv/"
+    - "frames/ipad-A16/"
+    - "frames/ipad-mini-a17-pro/"
+    - "frames/ipad-pro-m5/"
+    - "frames/macbook-air-m5/"
     - "frames/iphone-17/"
     - "frames/iphone-17/iPhone 17 Pro Max/"
     - "frames/iphone-17/iPhone 17 Pro/"
