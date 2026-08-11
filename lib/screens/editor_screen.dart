@@ -973,7 +973,8 @@ class _EditorScreenState extends State<EditorScreen> {
       final bgCanvas = Canvas(bgRecorder, Rect.fromLTWH(0, 0, canvasW.toDouble(), canvasH.toDouble()));
       if (_backgroundGradient != null) {
          final rect = Rect.fromLTWH(0, 0, canvasW.toDouble(), canvasH.toDouble());
-         final paint = Paint()..shader = ui.Gradient.linear(rect.topLeft, rect.bottomRight, _backgroundGradient!);
+         final stops = [for (int i = 0; i < _backgroundGradient!.length; i++) i / (_backgroundGradient!.length - 1)];
+         final paint = Paint()..shader = ui.Gradient.linear(rect.topLeft, rect.bottomRight, _backgroundGradient!, stops);
          bgCanvas.drawRect(rect, paint);
       } else {
          bgCanvas.drawColor(_backgroundColor, BlendMode.srcOver);
