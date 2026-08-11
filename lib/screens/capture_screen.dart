@@ -22,6 +22,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
   List<CaptureSource> _sources = [];
   bool _isLoading = true;
   String? _error;
+  String _debugState = "Init";
 
   CaptureSource? _activeSource;
   CaptureSource? _selectedSource;
@@ -29,11 +30,13 @@ class _CaptureScreenState extends State<CaptureScreen> {
   Timer? _recordingTimer;
   Duration _recordingDuration = Duration.zero;
 
+  int _selectedTab = 0; // 0: Screens, 1: Windows, 2: Simulators
+
   @override
   void initState() {
     super.initState();
     _loadSources();
-    _windowChannel.invokeMethod('setSize', {'width': 400.0, 'height': 80.0});
+    _windowChannel.invokeMethod('setSize', {'width': 500.0, 'height': 450.0});
   }
 
   @override
@@ -43,67 +46,26 @@ class _CaptureScreenState extends State<CaptureScreen> {
   }
 
   Future<void> _loadSources() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _debugState = "Calling getAvailableSources...";
+    });
     try {
       final sources = await _api.getAvailableSources();
       setState(() {
+        _debugState = "Returned ${sources.length} sources";
         _sources = sources;
         if (_selectedSource == null && sources.isNotEmpty) {
-          _selectedSource = sources.firstWhere(
-            (s) => s.type == 2,
-            orElse: () => sources.first,
-          );
+          _selectedSource = sources.first;
         }
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
+        _debugState = "Exception caught: $e";
         _error = e.toString();
         _isLoading = false;
-      });
-    }
-  }
-
-  void _showDeviceSelector(BuildContext context, TapDownDetails details) async {
-    if (_sources.isEmpty) {
-      await _loadSources();
-    }
-
-    final simulators = _sources.where((s) => s.type == 2).toList();
-    if (simulators.isEmpty && mounted) {
-      showToast(context, 'No booted simulators found. Please launch one.', isError: true);
-      return;
-    }
-
-    final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
-    final CaptureSource? selected = await showMenu<CaptureSource>(
-      context: context,
-      position: RelativeRect.fromRect(
-        details.globalPosition & const Size(40, 40),
-        Offset.zero & overlay.size,
-      ),
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 3,
-
-      items: simulators.map((CaptureSource source) {
-        return PopupMenuItem<CaptureSource>(
-          value: source,
-          child: Text(
-            source.name,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF1F2937),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        );
-      }).toList(),
-    );
-
-    if (selected != null && mounted) {
-      setState(() {
-        _selectedSource = selected;
       });
     }
   }
@@ -121,296 +83,375 @@ class _CaptureScreenState extends State<CaptureScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Center(
-        child: GestureDetector(
-          onPanStart: (details) {
-            _windowChannel.invokeMethod('startDragging');
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            width: 600,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: isRecording
-                      ? const Color(0xFFDC2626).withOpacity(0.15)
-                      : Colors.black.withOpacity(0.12),
-                  blurRadius: isRecording ? 20 : 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-              border: Border.all(
-                color: isRecording
-                    ? const Color(0xFFFCA5A5).withOpacity(0.5)
-                    : Colors.black.withOpacity(0.06),
-                width: 1,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: isRecording ? _buildRecordingPill() : _buildDashboard(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDashboard() {
+    final screens = _sources.where((s) => s.type == 0).toList();
+    final windows = _sources.where((s) => s.type == 1).toList();
+    final simulators = _sources.where((s) => s.type == 2).toList();
+
+    final currentList = _selectedTab == 0
+        ? screens
+        : (_selectedTab == 1 ? windows : simulators);
+
+    return GestureDetector(
+      onPanStart: (details) => _windowChannel.invokeMethod('startDragging'),
+      child: Container(
+        width: 500,
+        height: 450,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black.withOpacity(0.06)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.12),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+              child: Row(
+                children: [
+                  Image.asset('assets/logo.png', width: 24, height: 24),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Select Source',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, size: 20),
+                    color: Colors.black54,
+                    onPressed: _loadSources,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    color: Colors.black54,
+                    onPressed: () => exit(0),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.center,
+            // Debug text
+            Text(
+              _debugState,
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+            // Tabs
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOutCubic,
-                  child: isRecording
-                      ? const SizedBox.shrink()
-                      : Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            const SizedBox(width: 8),
-
-                            GestureDetector(
-                              onTap: () => exit(0),
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.05),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close,
-                                  size: 14,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                        ),
-                ),
-
-                // Logo / Indicator
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: isRecording
-                      ? Container(
-                          key: const ValueKey('rec_indicator'),
-                          width: 24,
-                          height: 24,
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0xFFEF4444), Color(0xFFF87171)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.fiber_manual_record,
-                            color: Colors.white,
-                            size: 12,
-                          ),
-                        )
-                      : Image.asset(
-                          'assets/logo.png',
-                          key: const ValueKey('logo'),
-                          width: 24,
-                          height: 24,
-                          fit: BoxFit.contain,
-                        ),
-                ),
-                const SizedBox(width: 12),
-
-                // Source Name and Timestamp (Horizontal)
-                Expanded(
-                  child: _isLoading
-                      ? const Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Loading...',
-                            style: TextStyle(
-                              color: Colors.black54,
-                              fontSize: 13,
-                            ),
-                          ),
-                        )
-                      : Builder(
-                          builder: (context) {
-                            return GestureDetector(
-                              onTapDown: isRecording
-                                  ? null
-                                  : (details) =>
-                                        _showDeviceSelector(context, details),
-                              child: Container(
-                                color: Colors
-                                    .transparent, // Ensures the gesture detector covers the whole expanded area
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        _selectedSource?.name ?? 'No Simulator',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                          color: Color(0xFF1F2937),
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    AnimatedSwitcher(
-                                      duration: const Duration(
-                                        milliseconds: 300,
-                                      ),
-                                      transitionBuilder: (child, animation) =>
-                                          FadeTransition(
-                                            opacity: animation,
-                                            child: child,
-                                          ),
-                                      child: !isRecording
-                                          ? const Icon(
-                                              Icons.unfold_more,
-                                              size: 16,
-                                              color: Colors.black38,
-                                              key: ValueKey('unfold'),
-                                            )
-                                          : Row(
-                                              key: const ValueKey('timer'),
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
-                                              children: [
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 4,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(
-                                                      0xFFFEF2F2,
-                                                    ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                  ),
-                                                  child: Row(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .center,
-                                                    children: [
-                                                      AnimatedContainer(
-                                                        duration:
-                                                            const Duration(
-                                                              milliseconds: 500,
-                                                            ),
-                                                        width: 6,
-                                                        height: 6,
-                                                        decoration: BoxDecoration(
-                                                          color:
-                                                              _recordingDuration
-                                                                          .inSeconds %
-                                                                      2 ==
-                                                                  0
-                                                              ? const Color(
-                                                                  0xFFDC2626,
-                                                                )
-                                                              : const Color(
-                                                                  0xFFFCA5A5,
-                                                                ),
-                                                          shape:
-                                                              BoxShape.circle,
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 6),
-                                                      Text(
-                                                        _formatDuration(
-                                                          _recordingDuration,
-                                                        ),
-                                                        style: const TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.w700,
-                                                          fontSize: 12,
-                                                          height:
-                                                              1.0, // Removes text leading for perfect vertical alignment
-                                                          color: Color(
-                                                            0xFFDC2626,
-                                                          ),
-                                                          letterSpacing: 1,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-                const SizedBox(width: 8),
-
-                // Record / Stop Button
-                GestureDetector(
-                  onTap: () {
-                    if (isRecording) {
-                      _handleStopRecording();
-                    } else if (_selectedSource != null) {
-                      _handleStartRecording(_selectedSource!);
-                    }
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOutBack,
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: isRecording
-                          ? const Color(0xFFF3F4F6)
-                          : const Color(0xFFFEF2F2),
-                      shape: BoxShape.circle,
-                      border: isRecording
-                          ? Border.all(color: Colors.black12)
-                          : Border.all(color: const Color(0xFFFCA5A5)),
-                    ),
-                    child: Center(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOutCubic,
-                        width: isRecording ? 12 : 14,
-                        height: isRecording ? 12 : 14,
-                        decoration: BoxDecoration(
-                          color: isRecording
-                              ? const Color(0xFF1F2937)
-                              : const Color(0xFFDC2626),
-                          borderRadius: BorderRadius.circular(
-                            isRecording ? 3 : 14,
-                          ),
-                        ),
+                _buildTab(0, 'Screens', screens.length),
+                _buildTab(1, 'Windows', windows.length),
+                _buildTab(2, 'Simulators', simulators.length),
+              ],
+            ),
+            const Divider(height: 1, color: Color(0xFFE5E5EA)),
+            // List
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Center(
+                      child: Text(
+                        'Error: $_error',
+                        style: const TextStyle(color: Colors.red),
                       ),
+                    )
+                  : currentList.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No sources available.',
+                        style: TextStyle(color: Colors.black38),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: currentList.length,
+                      itemBuilder: (context, index) {
+                        final s = currentList[index];
+                        final isSelected = _selectedSource == s;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 4),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF0A84FF).withOpacity(0.1)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: ListTile(
+                            leading: Icon(
+                              _selectedTab == 0
+                                  ? Icons.monitor
+                                  : (_selectedTab == 1
+                                        ? Icons.window
+                                        : Icons.phone_iphone),
+                              color: isSelected
+                                  ? const Color(0xFF0A84FF)
+                                  : Colors.black54,
+                            ),
+                            title: Text(
+                              s.name,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? const Color(0xFF0A84FF)
+                                    : const Color(0xFF1F2937),
+                              ),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            onTap: () => setState(() {
+                              _selectedSource = s;
+                            }),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            const Divider(height: 1, color: Color(0xFFE5E5EA)),
+            // Footer
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFDC2626),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                  onPressed: _selectedSource == null
+                      ? null
+                      : () => _handleStartRecording(_selectedSource!),
+                  child: const Text(
+                    'Record',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-              ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTab(int index, String title, int count) {
+    final isSelected = _selectedTab == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTab = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: isSelected ? const Color(0xFF0A84FF) : Colors.transparent,
+              width: 2,
             ),
           ),
+        ),
+        child: Row(
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 13,
+                color: isSelected ? const Color(0xFF0A84FF) : Colors.black54,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? const Color(0xFF0A84FF).withOpacity(0.1)
+                    : const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? const Color(0xFF0A84FF) : Colors.black45,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecordingPill() {
+    return GestureDetector(
+      onPanStart: (details) => _windowChannel.invokeMethod('startDragging'),
+      child: Container(
+        width: 400,
+        height: 48,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFDC2626).withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            ),
+          ],
+          border: Border.all(
+            color: const Color(0xFFFCA5A5).withOpacity(0.5),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(width: 12),
+            Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFEF4444), Color(0xFFF87171)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.fiber_manual_record,
+                color: Colors.white,
+                size: 12,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      _activeSource?.name ?? 'Recording',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: Color(0xFF1F2937),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 500),
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: _recordingDuration.inSeconds % 2 == 0
+                                ? const Color(0xFFDC2626)
+                                : const Color(0xFFFCA5A5),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _formatDuration(_recordingDuration),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            height: 1.0,
+                            color: Color(0xFFDC2626),
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: _handleStopRecording,
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F4F6),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.black12),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1F2937),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
         ),
       ),
     );
   }
 
   Future<void> _handleStartRecording(CaptureSource source) async {
-    if (source.type != 2) {
-      showToast(context, 'Use a Simulator!', isError: true);
-      return;
-    }
     try {
       final home = Platform.environment['HOME'] ?? '';
       final outputPath =
           '$home/Downloads/xowcase_${DateTime.now().millisecondsSinceEpoch}.mp4';
+
+      _windowChannel.invokeMethod('setSize', {'width': 400.0, 'height': 80.0});
+
       await _api.startCapture(source.id, source.type, outputPath);
       setState(() {
         _activeSource = source;
@@ -423,7 +464,14 @@ class _CaptureScreenState extends State<CaptureScreen> {
       });
     } catch (e) {
       if (mounted) {
+        setState(() {
+            _error = e.toString();
+        });
         showToast(context, 'Error: $e', isError: true);
+        _windowChannel.invokeMethod('setSize', {
+          'width': 500.0,
+          'height': 450.0,
+        });
       }
     }
   }
@@ -431,11 +479,12 @@ class _CaptureScreenState extends State<CaptureScreen> {
   Future<void> _handleStopRecording() async {
     try {
       _recordingTimer?.cancel();
-      final sourceId = _activeSource!.id;
+      final source = _activeSource!;
+      final sourceId = source.id;
       await _api.stopCapture();
       setState(() => _activeSource = null);
       if (mounted) {
-        _openEditor(sourceId);
+        _openEditor(sourceId, source);
       }
     } catch (e) {
       if (mounted) {
@@ -444,7 +493,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
     }
   }
 
-  void _openEditor(String sourceId) {
+  void _openEditor(String sourceId, CaptureSource source) {
     final home = Platform.environment['HOME'] ?? '';
     final dir = Directory('$home/Downloads');
     if (!dir.existsSync()) return;
@@ -454,7 +503,10 @@ class _CaptureScreenState extends State<CaptureScreen> {
         .whereType<File>()
         .where((f) => f.path.contains('xowcase_'))
         .toList();
-    if (files.isEmpty) return;
+    if (files.isEmpty) {
+      _windowChannel.invokeMethod('setSize', {'width': 500.0, 'height': 450.0});
+      return;
+    }
 
     files.sort(
       (a, b) => b.statSync().modified.compareTo(a.statSync().modified),
@@ -467,14 +519,14 @@ class _CaptureScreenState extends State<CaptureScreen> {
     Navigator.of(context)
         .push(
           MaterialPageRoute(
-            builder: (_) => EditorScreen(videoPath: latestVideo),
+            builder: (_) => EditorScreen(videoPath: latestVideo, source: source),
           ),
         )
         .then((_) {
-          // Resize back to Tiny Pill when editor closes
+          // Resize back to Dashboard when editor closes
           _windowChannel.invokeMethod('setSize', {
-            'width': 400.0,
-            'height': 80.0,
+            'width': 500.0,
+            'height': 450.0,
           });
         });
   }

@@ -26,6 +26,120 @@ class PreviewTexture: NSObject, FlutterTexture, SCStreamOutput, SCStreamDelegate
     }
 }
 
+@available(macOS 12.3, *)
+class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
+    private var stream: SCStream?
+    private var assetWriter: AVAssetWriter?
+    private var videoInput: AVAssetWriterInput?
+    private var pixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor?
+    private var isRecording = false
+    private var startTime: CMTime?
+    
+    private let videoQueue = DispatchQueue(label: "app.xowcase.videoQueue")
+    
+    func start(filter: SCContentFilter, config: SCStreamConfiguration, outputPath: String, completion: @escaping (Error?) -> Void) {
+        do {
+            let url = URL(fileURLWithPath: outputPath)
+            if FileManager.default.fileExists(atPath: outputPath) {
+                try FileManager.default.removeItem(at: url)
+            }
+            
+            assetWriter = try AVAssetWriter(outputURL: url, fileType: .mp4)
+            guard let assetWriter = assetWriter else { return }
+            
+            let videoSettings: [String: Any] = [
+                AVVideoCodecKey: AVVideoCodecType.h264,
+                AVVideoWidthKey: config.width,
+                AVVideoHeightKey: config.height
+            ]
+            videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
+            videoInput?.expectsMediaDataInRealTime = true
+            
+            guard let videoInput = videoInput, assetWriter.canAdd(videoInput) else {
+                completion(NSError(domain: "ScreenRecorder", code: -1, userInfo: [NSLocalizedDescriptionKey: "Cannot add video input"]))
+                return
+            }
+            assetWriter.add(videoInput)
+            
+            let sourcePixelBufferAttributes: [String: Any] = [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+                kCVPixelBufferWidthKey as String: config.width,
+                kCVPixelBufferHeightKey as String: config.height
+            ]
+            pixelBufferAdaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: videoInput, sourcePixelBufferAttributes: sourcePixelBufferAttributes)
+            
+            assetWriter.startWriting()
+            
+            stream = SCStream(filter: filter, configuration: config, delegate: self)
+            try stream?.addStreamOutput(self, type: .screen, sampleHandlerQueue: videoQueue)
+            
+            stream?.startCapture(completionHandler: { error in
+                if let error = error {
+                    print("ScreenRecorder: startCapture error: \(error)")
+                    completion(error)
+                } else {
+                    print("ScreenRecorder: startCapture SUCCESS")
+                    self.isRecording = true
+                    completion(nil)
+                }
+            })
+        } catch {
+            print("ScreenRecorder: catch error: \(error)")
+            completion(error)
+        }
+    }
+    
+    func stop(completion: @escaping () -> Void) {
+        print("ScreenRecorder: stop requested")
+        videoQueue.async {
+            self.isRecording = false
+            self.stream?.stopCapture { _ in
+                if self.startTime == nil {
+                    print("ScreenRecorder: No frames were captured. Canceling writing.")
+                    self.assetWriter?.cancelWriting()
+                    completion()
+                    return
+                }
+                
+                self.videoInput?.markAsFinished()
+                self.assetWriter?.finishWriting {
+                    if let error = self.assetWriter?.error {
+                        print("ScreenRecorder: finishWriting ERROR: \(error)")
+                    } else {
+                        print("ScreenRecorder: finishWriting SUCCESS")
+                    }
+                    completion()
+                }
+            }
+        }
+    }
+    
+    func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
+        guard isRecording, type == .screen else { return }
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { 
+            print("ScreenRecorder: No pixel buffer in sample")
+            return 
+        }
+        
+        let presentationTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+        
+        if startTime == nil {
+            print("ScreenRecorder: Received first frame at \(presentationTime.value)")
+            startTime = presentationTime
+            assetWriter?.startSession(atSourceTime: presentationTime)
+        }
+        
+        if videoInput?.isReadyForMoreMediaData == true {
+            let success = pixelBufferAdaptor?.append(pixelBuffer, withPresentationTime: presentationTime) ?? false
+            if !success {
+                print("ScreenRecorder: append pixel buffer FAILED. Writer status: \(String(describing: assetWriter?.status.rawValue))")
+            }
+        } else {
+            print("ScreenRecorder: videoInput NOT ready for more data")
+        }
+    }
+}
+
 class CaptureApiImpl: NSObject, CaptureApi {
     var currentProcess: Process?
     var registry: FlutterTextureRegistry?
@@ -83,12 +197,63 @@ class CaptureApiImpl: NSObject, CaptureApi {
     }
     
     func getAvailableSources(completion: @escaping (Result<[CaptureSource], Error>) -> Void) {
-        // Only return simulators. We do not use ScreenCaptureKit for simulators,
-        // so we can bypass SCShareableContent entirely to avoid triggering
-        // the macOS "Screen Recording" permission prompt.
-        let sources = self.getSimulators()
-        completion(.success(sources))
+        DispatchQueue.main.async {
+            if #available(macOS 12.3, *) {
+                let hasAccess = CGPreflightScreenCaptureAccess()
+                if !hasAccess {
+                    CGRequestScreenCaptureAccess()
+                    let error = PigeonError(code: "PERMISSION_DENIED", message: "Screen Recording permission is required. The system prompt should appear. Please allow it in System Settings, then click the Refresh (🔄) button.", details: nil)
+                    completion(.failure(error))
+                    return
+                }
+                
+                SCShareableContent.getExcludingDesktopWindows(true, onScreenWindowsOnly: true) { content, error in
+                    if let error = error {
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    var sources: [CaptureSource] = []
+                    
+                    if let content = content {
+                        for display in content.displays {
+                            let name = "Display \(display.displayID)"
+                            sources.append(CaptureSource(id: "\(display.displayID)", name: name, type: 0))
+                        }
+                        
+                        let ignoredApps = ["Control Center", "CursorUIViewService", "Spotlight", "Window Server", "loginwindow", "Notification Center", "Dock", "Accessibility", "Open and Save Panel Service", "Cap"]
+                        
+                        for window in content.windows {
+                            if window.windowLayer == 0,
+                               let appName = window.owningApplication?.applicationName,
+                               !ignoredApps.contains(where: { appName.contains($0) }) {
+                                
+                                let title = window.title ?? ""
+                                // Only add the title if it exists, otherwise just the app name
+                                let displayName = title.isEmpty ? appName : "\(appName) - \(title)"
+                                sources.append(CaptureSource(id: "\(window.windowID)", name: displayName, type: 1))
+                            }
+                        }
+                    }
+                    
+                    if sources.isEmpty {
+                        let pigeonError = PigeonError(code: "PERMISSION_DENIED", message: "macOS blocked Screen Recording. Remove the app from System Settings, restart the app, and wait for the prompt.", details: nil)
+                        completion(.failure(pigeonError))
+                        return
+                    }
+                    
+                    sources.append(contentsOf: self.getSimulators())
+                    completion(.success(sources))
+                }
+            } else {
+                let error = PigeonError(code: "UNSUPPORTED_OS", message: "macOS 12.3+ is required for ScreenCaptureKit", details: nil)
+                completion(.failure(error))
+            }
+        }
     }
+    
+    // To hold the SCStream recorder instance
+    private var screenRecorder: Any?
     
     func startCapture(sourceId: String, sourceType: Int64, outputPath: String, completion: @escaping (Result<Void, Error>) -> Void) {
         if sourceType == 2 {
@@ -104,7 +269,62 @@ class CaptureApiImpl: NSObject, CaptureApi {
                 completion(.failure(error))
             }
         } else {
-            completion(.failure(NSError(domain: "CaptureApi", code: -1, userInfo: [NSLocalizedDescriptionKey: "Only simctl supported for recording so far"])))
+            guard #available(macOS 12.3, *) else {
+                completion(.failure(NSError(domain: "CaptureApi", code: -1, userInfo: [NSLocalizedDescriptionKey: "macOS 12.3+ required for recording windows/screens"])))
+                return
+            }
+            
+            SCShareableContent.getExcludingDesktopWindows(true, onScreenWindowsOnly: true) { content, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                guard let content = content else { return }
+                
+                var targetWindow: SCWindow?
+                var targetDisplay: SCDisplay?
+                
+                if sourceType == 1 {
+                    targetWindow = content.windows.first(where: { "\($0.windowID)" == sourceId })
+                } else if sourceType == 0 {
+                    targetDisplay = content.displays.first(where: { "\($0.displayID)" == sourceId })
+                }
+                
+                let filter: SCContentFilter
+                let width: Int
+                let height: Int
+                if let w = targetWindow {
+                    filter = SCContentFilter(desktopIndependentWindow: w)
+                    let rawW = Int(w.frame.width * 2)
+                    let rawH = Int(w.frame.height * 2)
+                    width = rawW % 2 == 0 ? rawW : rawW - 1
+                    height = rawH % 2 == 0 ? rawH : rawH - 1
+                } else if let d = targetDisplay {
+                    filter = SCContentFilter(display: d, excludingWindows: [])
+                    let rawW = d.width * 2
+                    let rawH = d.height * 2
+                    width = rawW % 2 == 0 ? rawW : rawW - 1
+                    height = rawH % 2 == 0 ? rawH : rawH - 1
+                } else {
+                    completion(.failure(NSError(domain: "CaptureApi", code: -1, userInfo: [NSLocalizedDescriptionKey: "Source not found"])))
+                    return
+                }
+                
+                let config = SCStreamConfiguration()
+                config.showsCursor = true
+                config.width = width
+                config.height = height
+                
+                let recorder = ScreenRecorder()
+                self.screenRecorder = recorder
+                recorder.start(filter: filter, config: config, outputPath: outputPath) { error in
+                    if let error = error {
+                        completion(.failure(error))
+                    } else {
+                        completion(.success(()))
+                    }
+                }
+            }
         }
     }
     
@@ -115,6 +335,14 @@ class CaptureApiImpl: NSObject, CaptureApi {
                 task.waitUntilExit()
             }
             self.currentProcess = nil
+        }
+        
+        if #available(macOS 12.3, *) {
+            if let recorder = self.screenRecorder as? ScreenRecorder {
+                recorder.stop {
+                    self.screenRecorder = nil
+                }
+            }
         }
     }
     
