@@ -46,3 +46,6 @@ app.*.map.json
 
 # Plans
 future.plans.md
+
+# FVM Version Cache
+.fvm/

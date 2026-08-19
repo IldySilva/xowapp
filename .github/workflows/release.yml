@@ -1,0 +1,256 @@
+name: Build macOS DMG
+
+on:
+  push:
+    branches:
+      - main
+      - release
+      - feat/ci-cd
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+      - release
+  workflow_dispatch: # Allow manual triggering
+
+# Only keep the latest run per ref; tag runs publish a release and are never
+# cancelled halfway.
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+permissions:
+  contents: write # required to create GitHub Releases
+
+jobs:
+  prepare:
+    name: Resolve build metadata
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      numeric_version: ${{ steps.meta.outputs.numeric_version }}
+      flutter_version: ${{ steps.meta.outputs.flutter_version }}
+      is_release: ${{ steps.meta.outputs.is_release }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Resolve version and Flutter SDK
+        id: meta
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          # Flutter SDK version: .fvmrc is the source of truth for the project.
+          # The fallback only applies if .fvmrc is missing from the checkout.
+          if [ -f ".fvmrc" ]; then
+            FLUTTER_VERSION=$(grep -o '"flutter"[[:space:]]*:[[:space:]]*"[^"]*"' .fvmrc | cut -d'"' -f4)
+          fi
+          FLUTTER_VERSION="${FLUTTER_VERSION:-3.47.0}"
+
+          # Artifact version: tag name for releases, pubspec version + sha otherwise.
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            VERSION="${VERSION#v}"
+            IS_RELEASE=true
+          else
+            PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+            VERSION="${PUBSPEC_VERSION}-$(echo "${GITHUB_SHA}" | cut -c1-7)"
+            IS_RELEASE=false
+          fi
+
+          # CFBundleShortVersionString only accepts a plain x.y.z version.
+          NUMERIC_VERSION="${VERSION%%-*}"
+
+          {
+            echo "version=${VERSION}"
+            echo "numeric_version=${NUMERIC_VERSION}"
+            echo "flutter_version=${FLUTTER_VERSION}"
+            echo "is_release=${IS_RELEASE}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Version: ${VERSION} | Flutter: ${FLUTTER_VERSION} | Release: ${IS_RELEASE}"
+
+  verify:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ needs.prepare.outputs.flutter_version }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # Reported, not enforced: the tree is not fully `dart format`-clean yet,
+      # and a whitespace diff should not be able to block a release build.
+      - name: Verify formatting
+        continue-on-error: true
+        run: dart format --output=none --set-exit-if-changed .
+
+      # Infos are advisory here (deprecations, lint style); warnings and errors
+      # still fail the job and therefore the DMG build.
+      - name: Analyze code
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run tests
+        run: flutter test
+
+  build-macos:
+    name: Build macOS DMG
+    runs-on: macos-latest
+    needs: [prepare, verify]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ needs.prepare.outputs.flutter_version }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build macOS app (release)
+        run: flutter build macos --release --build-name=${{ needs.prepare.outputs.numeric_version }}
+
+      - name: Create DMG
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          # PRODUCT_NAME names the .app on disk; the download gets the
+          # capitalised product name instead.
+          APP_NAME=$(grep "PRODUCT_NAME" macos/Runner/Configs/AppInfo.xcconfig | cut -d'=' -f2 | xargs)
+          APP_PATH="build/macos/Build/Products/Release/${APP_NAME}.app"
+          DMG_PATH="build/dist/Xowcase-${VERSION}-macos.dmg"
+
+          if [ ! -d "${APP_PATH}" ]; then
+            echo "Missing Flutter build output: ${APP_PATH}" >&2
+            ls -l build/macos/Build/Products/Release || true
+            exit 1
+          fi
+
+          mkdir -p build/dist
+          STAGE_DIR=$(mktemp -d)
+          cp -R "${APP_PATH}" "${STAGE_DIR}/"
+          ln -s /Applications "${STAGE_DIR}/Applications"
+
+          hdiutil create -volname "Xowcase" \
+            -srcfolder "${STAGE_DIR}" \
+            -ov -format UDZO \
+            "${DMG_PATH}"
+
+          rm -rf "${STAGE_DIR}"
+          ls -lh "${DMG_PATH}"
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: xowcase-macos-dmg
+          path: build/dist/*.dmg
+          retention-days: 90
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [prepare, build-macos]
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -lhR dist
+
+      - name: Generate checksums
+        run: |
+          set -euo pipefail
+          cd dist
+          # The app ships unsigned, so a published digest is the only way a
+          # downloader can verify what they got.
+          shopt -s nullglob
+          files=(*.dmg)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No release artifacts found to checksum" >&2
+            exit 1
+          fi
+          sha256sum "${files[@]}" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Xowcase ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          body: |
+            ## 🚀 Xowcase ${{ github.ref_name }}
+
+            ### 📦 Downloads
+
+            | Platform | File |
+            | --- | --- |
+            | macOS | `Xowcase-${{ needs.prepare.outputs.version }}-macos.dmg` |
+
+            The macOS build is a universal binary — one download runs natively
+            on both Apple Silicon and Intel.
+
+            > **Unsigned build.** On first launch macOS blocks the app: open
+            > **System Settings → Privacy & Security** and choose **Open Anyway**
+            > (right-click → Open no longer bypasses Gatekeeper on macOS 15+).
+            >
+            > **Video export needs FFmpeg.** Xowcase shells out to an `ffmpeg`
+            > on your machine — install it with `brew install ffmpeg`.
+            > Screen capture also needs Screen Recording permission, granted on
+            > first capture in **Privacy & Security → Screen Recording**.
+
+            Verify a download against `SHA256SUMS.txt`:
+            `shasum -a 256 -c SHA256SUMS.txt --ignore-missing`
+          files: dist/**/*
+          # Appends the commit/PR changelog under the body above.
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  summary:
+    name: Build summary
+    runs-on: ubuntu-latest
+    needs: [prepare, build-macos]
+    if: always()
+    steps:
+      - name: Write summary
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          MACOS_RESULT: ${{ needs.build-macos.result }}
+        run: |
+          {
+            echo "## 📦 macOS build — \`${VERSION}\`"
+            echo ""
+            echo "| Platform | Artifact | Status |"
+            echo "| --- | --- | --- |"
+            echo "| macOS | \`xowcase-macos-dmg\` (.dmg) | ${MACOS_RESULT} |"
+            echo ""
+            echo "> 💡 Actions tab → this run → **Artifacts** to download."
+            echo "> Push a \`v*\` tag to publish the DMG as a GitHub Release."
+          } >> "$GITHUB_STEP_SUMMARY"
